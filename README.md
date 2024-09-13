@@ -1,0 +1,54 @@
+# $P0$ Conservative Interpolation
+A Fortran code to perform $P0$ conservative interpolation of a scalar field from one mesh to another.
+
+## Usage
+The provided Makefile allows to run a demo of the code by running the following command:
+```console
+    make run
+```
+This demo does three main steps
+- It generates a source mesh with an associated solution and a target mesh with no associated solution by calling a Python script.
+- It performs the interpolation by calling the main executable. This appends the interpolated solution at the end of the target mesh file.
+- It plots the source mesh with the original solution and the target mesh with the interpolated solution by calling the relevant Python script.
+
+## Overview
+
+### Conservative interpolation
+The conservation property arises from the fact that the field value in each cell of the target mesh is obtained as an average,
+weighted by the area of the intersections with the cells from the source mesh
+(see Farrell, P. E., & Maddison, J. R. "Conservative interpolation between volume meshes by local Galerkin projection" (2011)) for details).
+
+### Intersection area
+The conservative interpolation relies on the computation of the area of the overlap between each cell of both meshes.
+This computation is performed in two steps for each cell:
+- The Sutherland-Hodgman algorithm is used to clip a cell from one mesh with respect to a cell from the other mesh.
+This gives the intersection of the two polygons.
+- The area of the intersection polygon is computed using the trapezoid formula.
+
+## Debug
+
+### Compile in debug mode
+The code can be compiled in debug mode by setting the `DEBUG` variable to 1: `make DEBUG=1` or `make run DEBUG=1`.
+
+### Test executable
+A test code is also provided and can be compiled and run by the following command:
+```console
+    make run_tests
+```
+This code does some intersection and interpolation tests on meshes of different sizes
+and performs a linear regression on the L2 error to check the first order convergence.
+
+### Robust predicates
+The polygon clipping algorithm relies on an orientation test which is performed by a regular cross product by default.
+One could use the robust orientation test from Jonathan Richard Shewchuk (see the `predicates.c` file for details) instead.
+However, this should not be necessary in any case because the implementation of the polygon clipping algorithm already features a tolerance
+to handle numerical issues such as rounding errors.
+This feature is enabled by setting `ROBUST_PREDICATES=1`.
+
+## Improvements
+This code is currently far from optimal.
+
+The aim of the Python scripts is only to provide files for the Fortran codes to work with and to display the results,
+therefore I do not plan to improve them any time soon.
+
+On the contrary, the Fortran conservative interpolation code needs to be optimised and the first thing on my list is to build and use the connectivity of the mesh to improve the search of the overlapping polygons.
