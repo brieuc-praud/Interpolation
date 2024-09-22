@@ -20,35 +20,20 @@ module polygon_tools
 
 contains
 
-    function polygon_size(polygon)
-        !> return the true 'size' of the polygon (i.e. the number of vertices not set to 0)
-        !>
-        !> polygon     : the polygon of size MAX_VERTICES (i.e. padded with 0 if needed)
-        !> polygon_size: the number of non-zero vertex indices
-
-        integer, dimension(:), intent(in) :: polygon
-        integer                           :: polygon_size
-
-        polygon_size = findloc(polygon, 0, dim=1) - 1
-        if (polygon_size == -1) polygon_size = MAX_VERTICES
-    end function polygon_size
-
-    function rpolygon(vertices, polygon, n)
+    function rpolygon(vertices, polygon)
         !> return the polygon using the coordinates and not the indexes of its vertices
         !>
         !> vertices: the array containing the vertices
         !> polygon : the polygon, defined by its vertex indices
-        !> n       : the 'true size' of the polygon, as given by the function polygon_size(...)
         !> rpolygon: the polygon, defined by the coordinates of its vertices
 
-        real(wp), dimension(:,:),          intent(in) :: vertices
-        integer,  dimension(:),            intent(in) :: polygon       ! the polygon
-        integer                          , intent(in) :: n             ! the true size of the polygon
-        real(wp), dimension(2,n)                      :: rpolygon
+        real(wp), dimension(:,:),            intent(in) :: vertices
+        integer,  dimension(:),              intent(in) :: polygon
+        real(wp), dimension(2,size(polygon))            :: rpolygon
 
-        integer                                       :: i
+        integer                                         :: i
 
-        do i=1,n
+        do concurrent (i=1:size(polygon))
             rpolygon(:,i) = vertices(:,polygon(i))
         end do
     end function rpolygon
@@ -62,51 +47,50 @@ contains
         !> polygon2        : second polygon, defined by its indices in the vertices2 array
         !> overlapping_area: the area of the intersection of the two polygons
 
-        real(wp), dimension(:,:),         intent(in)  :: vertices1, vertices2
-        integer, dimension(MAX_VERTICES), intent(in)  :: polygon1, polygon2
-        real(wp)                                      :: overlapping_area
+        real(wp), dimension(:,:), intent(in) :: vertices1, vertices2
+        integer,  dimension(:),   intent(in) :: polygon1, polygon2
+        real(wp)                             :: overlapping_area
 
-        integer                                       :: n1, n2, nclipped
-        real(wp), dimension(2,MAX_VERTICES)           :: rpolygon1, rpolygon2, poly_clipped
+        real(wp), dimension(2,size(polygon1)) :: rpolygon1
+        real(wp), dimension(2,size(polygon2)) :: rpolygon2
+        real(wp), dimension(2,MAX_VERTICES)   :: poly_clipped
+        integer                               :: nclipped
 
-        n1 = polygon_size(polygon1)
-        n2 = polygon_size(polygon2)
         ! extract the coordinates of the vertices
-        rpolygon1(:,:n1) = rpolygon(vertices1, polygon1, n1)
-        rpolygon2(:,:n2) = rpolygon(vertices2, polygon2, n2)
+        rpolygon1(:,:) = rpolygon(vertices1(:,:), polygon1(:))
+        rpolygon2(:,:) = rpolygon(vertices2(:,:), polygon2(:))
 
         ! compute the intersection of the two polygons
-        call sutherland_hodgman(rpolygon1, n1, rpolygon2, n2, poly_clipped, nclipped)
+        call sutherland_hodgman(rpolygon1(:,:), rpolygon2(:,:), poly_clipped(:,:), nclipped)
 
-        overlapping_area = polygon_area(poly_clipped, nclipped)
+        overlapping_area = polygon_area(poly_clipped(:,:nclipped))
 
     end function overlapping_area
 
-    subroutine sutherland_hodgman(poly1, n1, poly2, n2, poly_clipped, nclipped)
+    subroutine sutherland_hodgman(poly1, poly2, poly_clipped, nclipped)
         !> get the polygon defined as the intersection of poly1 and poly2 
         !> 
         !> see Sutherland-Hodgman, Wikipedia for more infos
         !>
         !> poly1       : the clipping polygon
-        !> n1          : the size of the clipping polygon, as given by the function polygon_size(...)
         !> poly2       : the polygon to be clipped
-        !> n2          : the size of the polygon to be clipped, as given by the function polygon_size(...)
         !> poly_clipped: the clipped polygon
-        !> nclipped    : the size of the clipped polygon, as given by the function polygon_size(...)
+        !> nclipped    : the 'true size' of the clipped polygon, as given by the function polygon_size(...)
 
-        real(wp), parameter                              :: THRESHOLD = epsilon(1._wp) !> threshold to avoid numerical issues
-        real(wp), dimension(2,MAX_VERTICES), intent(in)  :: poly1, poly2
-        integer,                             intent(in)  :: n1,n2
+        real(wp), parameter                              :: THRESHOLD = epsilon(1._wp) !> tolerance to avoid numerical issues
+        real(wp), dimension(:,:),            intent(in)  :: poly1,poly2
         real(wp), dimension(2,MAX_VERTICES), intent(out) :: poly_clipped
         integer,                             intent(out) :: nclipped
 
-        integer                                          :: ninputs
+        integer                                          :: ninputs,n1,n2
         real(wp),  dimension(2,MAX_VERTICES)             :: inputs
         integer                                          :: i,j
         real(wp), dimension(2)                           :: m1,m2,p1,p2, inter
         real(wp)                                         :: cp1,cp2
 
-        poly_clipped(:,:n2) = poly2(:,:n2)
+        n1 = size(poly1,dim=2)
+        n2 = size(poly2,dim=2)
+        poly_clipped(:,:n2) = poly2(:,:)
         nclipped = n2
         do i=1,n1
             m1 = poly1(:,i)
@@ -197,18 +181,19 @@ contains
         end if
     end function intersection
 
-    function polygon_area_rpoly(polygon, n) result(polygon_area)
+    function polygon_area_rpoly(polygon) result(polygon_area)
         !> compute the area of a polygon (defined by the coordinates of its vertices) using the trapezoid formula
         !>
         !> polygon     : the polygon to compute the area from
-        !> n           : the 'true size' of the polygon, as given by the function polygon_size(...)
         !> polygon_area: the area of the polygon, computed by the trapezoid formula
 
-        real(wp), dimension(2,MAX_VERTICES), intent(in) :: polygon
-        integer,                             intent(in) :: n
-        real(wp)                                        :: polygon_area
+        real(wp), dimension(:,:), intent(in) :: polygon
+        real(wp)                             :: polygon_area
 
-        integer                                         :: i,j
+        integer                              :: n
+        integer                              :: i,j
+
+        n = size(polygon,dim=2)
         polygon_area = 0._wp
         do i=1,n
             j = mod(i,n)+1 ! next vertex index, looping
@@ -224,18 +209,15 @@ contains
         !> vertices    : the array containing the vertices
         !> polygon_area: the area of the polygon, computed by the trapezoid formula
 
-        real(wp), dimension(:,:),           intent(in) :: vertices
-        integer,  dimension(MAX_VERTICES),  intent(in) :: polygon
-        real(wp), dimension(2,MAX_VERTICES)            :: rpoly
-        real(wp)                                       :: polygon_area
-
-        integer                                        :: n
+        real(wp), dimension(:,:),            intent(in) :: vertices
+        integer,  dimension(:),              intent(in) :: polygon
+        real(wp), dimension(2,size(polygon))            :: rpoly
+        real(wp)                                        :: polygon_area
 
         ! get a polygon defined by its vertices
-        n = polygon_size(polygon)
-        rpoly(:,:n) = rpolygon(vertices, polygon, n)
+        rpoly(:,:) = rpolygon(vertices(:,:), polygon(:))
 
-        polygon_area = polygon_area_rpoly(rpoly, n)
+        polygon_area = polygon_area_rpoly(rpoly(:,:))
     end function polygon_area_poly
 
 end module polygon_tools

@@ -16,7 +16,8 @@ This demo does three main steps
 ### Conservative interpolation
 The conservation property arises from the fact that the field value in each cell of the target mesh is obtained as an average,
 weighted by the area of the intersections with the cells from the source mesh
-(see Farrell, P. E., & Maddison, J. R. "Conservative interpolation between volume meshes by local Galerkin projection" (2011)) for details).
+(see Farrell, P. E., & Maddison, J. R. "Conservative interpolation between volume meshes by local Galerkin projection" (2011) for details).
+This same paper explains how a linear time complexity is achieved using an advancing front algorithm while the naive approach has quadratic complexity.
 
 ### Intersection area
 The conservative interpolation relies on the computation of the area of the overlap between each cell of both meshes.
@@ -46,9 +47,13 @@ to handle numerical issues such as rounding errors.
 This feature is enabled by setting `ROBUST_PREDICATES=1`.
 
 ## Improvements
-This code is currently far from optimal.
+Several pieces of code here are far from optimal.
 
-The aim of the Python scripts is only to provide files for the Fortran codes to work with and to display the results,
+The aim of the Python scripts is only to provide files for the Fortran code to work with and to display the results,
 therefore I do not plan to improve them any time soon.
 
-On the contrary, the Fortran conservative interpolation code needs to be optimised and the first thing on my list is to build and use the connectivity of the mesh to improve the search of the overlapping polygons.
+Building the connectivity is also computationally heavy but it can reasonably be assumed that when using
+this piece of software as a library in a bigger project, the connectivity is already provided by a fancy mesh reader or by the meshing tool itself (especially if the Voronoï mesh is constructed by duality).
+
+The interpolation function could be optimized further by smartly providing an initial seed instead of brute forcing one.
+However, this would be very dependent on the software this interpolation is implemented in.

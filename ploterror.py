@@ -12,7 +12,7 @@ if len(sys.argv)-1 != 1:
      sys.stderr.write("usage: " + sys.argv[0] + " ERROR_FILE\n")
      sys.exit()
 
-error_file = sys.argv[1] # the file containing the source of the interpolation
+error_file = sys.argv[1] # the file containing the errors
 
 with open(error_file, 'r') as f:
     content = f.read().splitlines()
@@ -33,7 +33,8 @@ line = np.poly1d(reg)
 
 plt.plot(X, Y, 'ro')
 plt.plot(X, line(X), '-b')
-plt.title(f"Linear regression of slope {reg[0]:.2f}")
-plt.xlabel(r"$-\frac{1}{2}\log(\mathrm{cells\ number})$")
-plt.ylabel(r"$\log(\mathrm{L2\ error})$")
+plt.legend(["_",r"$y = {{{a:.2f}}}\,x\,{{{b:+.2f}}}$".format(a=reg[0], b=reg[1])])
+plt.title(r"Space order: ${{{:.2f}}}$".format(reg[0]))
+plt.xlabel(r"$x = -\frac{1}{2}\log(\mathrm{cells\ number})$")
+plt.ylabel(r"$y = \log(\mathrm{L2\ error})$")
 plt.show()

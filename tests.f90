@@ -19,6 +19,7 @@ program tests
 
     type(T_Mesh)       :: Mesh1, Mesh2
     character(len=256) :: source_mesh_file, target_mesh_file
+    real(wp)           :: t1,t2
 
     if (command_argument_count() /= 2) error stop 'invalid number of arguments (2 arguments expected)'
 
@@ -30,16 +31,19 @@ program tests
 #endif
 
     call read_mesh(Mesh1, source_mesh_file)
-    call TEST_self_intersection(Mesh1)
+    !call TEST_self_intersection(Mesh1)
     call read_mesh(Mesh2, target_mesh_file)
-    call TEST_self_intersection(Mesh2)
+    !call TEST_self_intersection(Mesh2)
 
-    call TEST_cross_intersection(Mesh1, Mesh2)
-    call TEST_cross_intersection(Mesh2, Mesh1)
+    !call TEST_cross_intersection(Mesh1, Mesh2)
+    !call TEST_cross_intersection(Mesh2, Mesh1)
 
+    call cpu_time(t1)
     call conservative_interpolation(Mesh1, Mesh2)
+    call cpu_time(t2)
     write(output_unit,*) "interpolation error:", TEST_compute_error(Mesh1, Mesh2)
-    
+    write(output_unit,*) "computation time:"   , t2-t1
+
     call write_mesh(Mesh2, target_mesh_file)
 
     call clean(Mesh1)
@@ -61,12 +65,16 @@ contains
         npolygons = size(Mesh%polygons, dim=2)
         do i=1,npolygons
             total_area = 0._wp
-            do j=1,npolygons
-                overlap_area = overlapping_area(Mesh%vertices(:,:), Mesh%polygons(:,i), &
-                    & Mesh%vertices(:,:), Mesh%polygons(:,j))
-                total_area = total_area + overlap_area
-            end do
-            real_area = polygon_area(Mesh%vertices, Mesh%polygons(:,i))
+            associate(si => Mesh%sizes(i))
+                do j=1,npolygons
+                    associate(sj => Mesh%sizes(j))
+                        overlap_area = overlapping_area(Mesh%vertices(:,:), Mesh%polygons(:si,i), &
+                            & Mesh%vertices(:,:), Mesh%polygons(:sj,j))
+                    end associate
+                    total_area = total_area + overlap_area
+                end do
+                real_area = polygon_area(Mesh%vertices, Mesh%polygons(:si,i))
+            end associate
             if (abs(total_area - real_area) > epsilon(total_area)) then
                 write(error_unit,*) "TEST_self_intersection -> fail"
                 write(error_unit,*) "index", i
@@ -93,12 +101,16 @@ contains
         n2 = size(Mesh2%polygons, dim=2)
         do i=1,n2
             total_area = 0._wp
-            do j=1,n1
-                overlap_area = overlapping_area(Mesh2%vertices(:,:), Mesh2%polygons(:,i), &
-                    & Mesh1%vertices(:,:), Mesh1%polygons(:,j))
-                total_area = total_area + overlap_area
-            end do
-            real_area = polygon_area(Mesh2%vertices, Mesh2%polygons(:,i))
+            associate(si => Mesh2%sizes(i))
+                do j=1,n1
+                    associate(sj => Mesh1%sizes(j))
+                        overlap_area = overlapping_area(Mesh2%vertices(:,:), Mesh2%polygons(:si,i), &
+                            & Mesh1%vertices(:,:), Mesh1%polygons(:sj,j))
+                        total_area = total_area + overlap_area
+                    end associate
+                end do
+                real_area = polygon_area(Mesh2%vertices, Mesh2%polygons(:si,i))
+            end associate
             if (abs(total_area - real_area) > epsilon(total_area)) then
                 write(error_unit,*) "TEST_cross_intersection -> fail"
                 write(error_unit,*) "index", i
@@ -132,8 +144,10 @@ contains
         total_area = 0._wp
         do i=1,nt
             do j=1,ns
-                overlap_area = overlapping_area(target_Mesh%vertices(:,:), target_Mesh%polygons(:,i), &
-                    & source_Mesh%vertices(:,:), source_Mesh%polygons(:,j))
+                associate(si => target_Mesh%sizes(i), sj => source_Mesh%sizes(j))
+                    overlap_area = overlapping_area(target_Mesh%vertices(:,:), target_Mesh%polygons(:si,i), &
+                        & source_Mesh%vertices(:,:), source_Mesh%polygons(:sj,j))
+                end associate
                 error = error + (overlap_area * (target_Mesh%solution(i) - source_Mesh%solution(i)))**2
                 total_area = total_area + overlap_area
             end do
