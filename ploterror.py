@@ -19,19 +19,19 @@ with open(error_file, 'r') as f:
 X = []
 Y = []
 for line in content:
-    x, y = line.split()
+    x, _, y = line.split()
     X.append(int(x))
     Y.append(float(y))
 
 # the characteristic length of a cell is proportional to the square root of its area
 # which is itself proportional to the inverse of the number of cells
-X = -.5*np.log(X[1:])
-Y = np.log(Y[1:])
+X = -.5*np.log(X)
+Y = np.log(Y)
 
 reg  = np.polyfit(X, Y, 1)
 line = np.poly1d(reg)
 
-plt.plot(X, Y, 'ro')
+plt.plot(X, Y, 'b+')
 plt.plot(X, line(X), '-b', label=r"$y = {{{a:.2f}}}\,x\,{{{b:+.2f}}}$".format(a=reg[0], b=reg[1]))
 plt.title(r"Space order: ${{{:.2f}}}$".format(reg[0]))
 plt.xlabel(r"$x = -\frac{1}{2}\log(\mathrm{cells\ number})$")

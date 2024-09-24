@@ -6,13 +6,11 @@ CC  := gcc
 PYT := python3
 
 EXE       	:= main
-EXE_TESTS 	:= tests
 
 ERROR_FILE  := error.dat
 TIMES_FILE  := times.dat
 
 OBJ 		  := parameters.o predicatesf90.o miscellaneous.o mesh.o polygon_tools.o interpolation.o $(EXE).o
-OBJ_TESTS     := parameters.o predicatesf90.o miscellaneous.o mesh.o polygon_tools.o interpolation.o $(EXE_TESTS).o
 SOURCE_MESH   := source.mesh
 TARGET_MESH   := target.mesh
 GENMESHES     := genmeshes.py
@@ -37,11 +35,8 @@ endif
 
 all:
 	make $(EXE)
-	make $(EXE_TESTS)
 
 $(EXE): $(OBJ)
-	$(F90) -o $@ $(VAR) $(F90FLAGS) $^
-$(EXE_TESTS): $(OBJ_TESTS)
 	$(F90) -o $@ $(VAR) $(F90FLAGS) $^
 
 %.o: %.f90
@@ -59,20 +54,22 @@ run: $(EXE) $(SOURCE_MESH) $(TARGET_MESH) $(PLOTMESHES)
 		./$(EXE) $(SOURCE_MESH) $(TARGET_MESH)
 		./$(PLOTMESHES) $(SOURCE_MESH) $(TARGET_MESH)
 
-run_tests: $(EXE_TESTS)
+run_tests: $(EXE)
 	rm -f $(ERROR_FILE) $(TIMES_FILE)
 	for i in 16 64 256 1024 4096 ; do \
 		echo "-> n=$$i" ; \
 		./$(GENMESHES) $$i 5 $(SOURCE_MESH) $(TARGET_MESH) ; \
 		echo -n "$$i " >>$(ERROR_FILE) ; \
 		echo -n "$$i " >>$(TIMES_FILE) ; \
-		bash -c "./$(EXE_TESTS) $(SOURCE_MESH) $(TARGET_MESH) \
-		| tee >(grep "error" | cut -d':' -f2 | xargs >>$(ERROR_FILE)) \
-		| tee >(grep "time"  | cut -d':' -f2 | xargs >>$(TIMES_FILE))" ; \
+		bash -c "./$^ $(SOURCE_MESH) $(TARGET_MESH) \
+		| tee >(grep 'self-interpolation error' | cut -d':' -f2 | xargs | tr '\n' ' ' >>$(ERROR_FILE)) \
+		| tee >(grep 'cross-interpolation error' | cut -d':' -f2 | xargs >>$(ERROR_FILE)) \
+		| tee >(grep 'self-interpolation computation time' | cut -d':' -f2 | xargs | tr '\n' ' ' >>$(TIMES_FILE)) \
+		| tee >(grep 'cross-interpolation computation time' | cut -d':' -f2 | xargs >>$(TIMES_FILE))" ; \
 	done
 	./$(PLOTMESHES) $(SOURCE_MESH) $(TARGET_MESH)
 	./$(PLOTERROR)  $(ERROR_FILE)
 	./$(PLOTTIMES)  $(TIMES_FILE)
 
 clean:
-	rm *.o *.mod *.mesh $(EXE) $(EXE_TESTS) $(ERROR_FILE) $(TIMES_FILE) 2>/dev/null | true
+	rm *.o *.mod *.mesh $(EXE) $(ERROR_FILE) $(TIMES_FILE) 2>/dev/null | true

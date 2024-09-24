@@ -32,18 +32,20 @@ This gives the intersection of the two polygons.
 The code can be compiled in debug mode by setting the `DEBUG` variable to 1: `make DEBUG=1` or `make run DEBUG=1`.
 
 ### Test executable
-A test code is also provided and can be compiled and run by the following command:
+A test process is also provided and can be run by the following command:
 ```console
     make run_tests
 ```
-This code does some intersection and interpolation tests on meshes of different sizes
-and performs a linear regression on the L2 error to check the first order convergence.
+This code does some cross-intersection as well as self-interpolation tests on meshes of different sizes
+then performs a linear regression on the L2 error to check the first order convergence.
+It also performs a linear regression on the computation time to check the linear time complexity.
+The aim of the self-interpolation test is to check the robustness of the code in a completely degenerated case.
 
 ### Robust predicates
 The polygon clipping algorithm relies on an orientation test which is performed by a regular cross product by default.
 One could use the robust orientation test from Jonathan Richard Shewchuk (see the `predicates.c` file for details) instead.
-However, this should not be necessary in any case because the implementation of the polygon clipping algorithm already features a tolerance
-to handle numerical issues such as rounding errors.
+However, this should not be necessary in any case because the implementation of the polygon clipping algorithm
+already features a tolerance to handle numerical issues such as rounding errors.
 This feature is enabled by setting `ROBUST_PREDICATES=1`.
 
 ## Improvements
